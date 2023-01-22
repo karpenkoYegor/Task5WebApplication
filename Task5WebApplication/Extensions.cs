@@ -5,10 +5,11 @@ namespace Task5WebApplication
 {
     public static class Extensions
     {
-        public static Random r = new Random(1);
+        public static Random r = new Random(PersonSeed + CurrentPage);
         public static int CountryId = 1;
         public static int PersonSeed = 1;
-        public static int CurrentPage = 0;
+        public static int CurrentPage = 1;
+
         public static double Errors = 0;
         public static List<List<StringBuilder>> People = new List<List<StringBuilder>>();
         public static List<PersonInformationModel> PersonInformationModels = new List<PersonInformationModel>();

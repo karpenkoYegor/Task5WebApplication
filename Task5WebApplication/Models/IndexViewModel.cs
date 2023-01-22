@@ -10,7 +10,7 @@ public class IndexViewModel
     public int Cursor { get; set; } = 11;
     public int Page { get; set; } = 1;
     public int UserSeed { get; set; } = 1;
-    public double Errors { get; set; }
+    public string Errors { get; set; } = "0";
     public List<List<StringBuilder>> PeopleInformation { get; set; }
     public List<Country> Countries { get; set; }
     public int CountryId { get; set; }

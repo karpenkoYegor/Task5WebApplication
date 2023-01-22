@@ -13,6 +13,7 @@ using Task5WebApplication.Data.Entities;
 using Task5WebApplication.Models;
 using Task5WebApplication.Views.Home;
 using Microsoft.AspNetCore.Hosting;
+using System;
 
 namespace Task5WebApplication.Controllers
 {
@@ -32,21 +33,11 @@ namespace Task5WebApplication.Controllers
 
         public IActionResult Index(int cursor, int page = 1)
         {
-            Extensions.CurrentPage++;
-            Extensions.r = new Random(Extensions.PersonSeed + Extensions.CurrentPage + (int)Extensions.Errors);
-            if (cursor == 0)
+            Extensions.r = new Random(Extensions.CurrentPage + Extensions.PersonSeed);
+            var count = cursor == 0 ? 20 : 10;
+            for (int i = 0; i < count; i++)
             {
-                for (int i = 0; i < 20; i++)
-                {
-                    Extensions.People.Add(AddPerson());
-                }
-            }
-            else
-            {
-                for (int i = 0; i < 10; i++)
-                {
-                    Extensions.People.Add(AddPerson());
-                }
+                Extensions.People.Add(AddPerson());
             }
             cursor = cursor == 0 ? 11 : cursor;
             var model = new IndexViewModel()
@@ -54,7 +45,6 @@ namespace Task5WebApplication.Controllers
                 Cursor = cursor,
                 Countries = _repository.Country.GetAllCounties(),
                 PeopleInformation = Extensions.People,
-                
             };
             return Request.IsHtmx()
                 ? PartialView("_Cards", model)
@@ -63,47 +53,53 @@ namespace Task5WebApplication.Controllers
         [HttpPost]
         public IActionResult Index(IndexViewModel model)
         {
+            
             Extensions.People = new List<List<StringBuilder>>();
             Extensions.PersonInformationModels = new List<PersonInformationModel>();
             Extensions.CountryId = model.CountryId;
-            Extensions.Errors = Extensions.r.Next(0, 1) == 0 ? model.Errors : model.Errors + 1;
+            Extensions.Errors = Convert.ToDouble(model.Errors, new CultureInfo("en-US"));
             Extensions.PersonSeed = model.UserSeed;
+            Extensions.r = new Random(Extensions.CurrentPage + Extensions.PersonSeed);
             Extensions.CurrentPage = 1;
-            Extensions.r = new Random(Extensions.PersonSeed + Extensions.CurrentPage + (int)Extensions.Errors);
             for (int i = 0; i < 20; i++)
             {
                 Extensions.People.Add(AddPerson());
             }
+            if (Extensions.Errors > 0)
+                Extensions.People = AddErrors(Extensions.People, Extensions.Errors);
             model.Countries = _repository.Country.GetAllCounties();
             model.PeopleInformation = Extensions.People;
             return View(model);
         }
 
-        public List<StringBuilder> AddErrors(List<StringBuilder> personRow, double errors)
+        public List<List<StringBuilder>> AddErrors(List<List<StringBuilder>> persons, double errors)
         {
-            
-            for (int j = 0; j < errors; j++) 
+            foreach (var personRow in persons)
             {
-                var typeError = Extensions.r.Next(1, 20);
-                var randomPerson = personRow.PickRandom();
-                if (typeError == 1 && randomPerson.Length < 5)
+                var error = Extensions.r.Next(0, 2) == 0 && errors % 1 == 0.5 ? (int)errors : (int)errors + 1;
+                for (int j = 0; j < error; j++)
                 {
-                    typeError = 2;
-                }
-                switch (typeError)
-                { 
-                    case 1:
-                        randomPerson.DeleteSymbol();
-                        break;
-                    case 2:
-                        randomPerson.InsertSymbol(Extensions.CountryId);
-                        break;
-                    default:
-                        randomPerson.SwapSymbol();
-                        break;
+                    var typeError = Extensions.r.Next(1, 20);
+                    var randomPerson = personRow.PickRandom();
+                    if (typeError == 1 && randomPerson.Length < 5)
+                    {
+                        typeError = 2;
+                    }
+                    switch (typeError)
+                    {
+                        case 1:
+                            randomPerson.DeleteSymbol();
+                            break;
+                        case 2:
+                            randomPerson.InsertSymbol(Extensions.CountryId);
+                            break;
+                        default:
+                            randomPerson.SwapSymbol();
+                            break;
+                    }
                 }
             }
-            return personRow;
+            return persons;
         }
         public List<StringBuilder> AddPerson()
         {
@@ -113,8 +109,6 @@ namespace Task5WebApplication.Controllers
             person.Add(AddCity());
             person.Add(AddStreet());
             person.Add(AddPhoneNumber());
-            if (Extensions.Errors > 0)
-                person = AddErrors(person, Extensions.Errors);
             Extensions.PersonInformationModels.Add(new PersonInformationModel()
             {
                 Passport = person[0].ToString(),
