@@ -6,16 +6,17 @@ namespace Task5WebApplication
     public static class Extensions
     {
         public static Random r = new Random(PersonSeed + CurrentPage);
-        public static int CountryId = 1;
+        public static Random randomForUsers = new Random(PersonSeed + CurrentPage);
         public static int PersonSeed = 1;
         public static int CurrentPage = 1;
-
+        public static int CountryId = 1;
         public static double Errors = 0;
-        public static List<List<StringBuilder>> People = new List<List<StringBuilder>>();
-        public static List<PersonInformationModel> PersonInformationModels = new List<PersonInformationModel>();
+
+        public static List<PersonInformationModel> Persons = new List<PersonInformationModel>();
+
         public static T PickRandom<T>(this IList<T> source)
         {
-            int randIndex = r.Next(source.Count);
+            int randIndex = randomForUsers.Next(source.Count);
             return source[randIndex];
         }
 
@@ -28,7 +29,8 @@ namespace Task5WebApplication
         public static StringBuilder SwapSymbol(this StringBuilder source)
         {
             int randIndex;
-            if (source.Length - 2 > 2)
+            int minSymbols = 2;
+            if (source.Length - 2 > minSymbols)
                 randIndex = r.Next(2, source.Length - 2);
             else
                 randIndex = r.Next(2, source.Length - 1);

@@ -14,6 +14,7 @@ using Task5WebApplication.Models;
 using Task5WebApplication.Views.Home;
 using Microsoft.AspNetCore.Hosting;
 using System;
+using System.Numerics;
 
 namespace Task5WebApplication.Controllers
 {
@@ -22,6 +23,7 @@ namespace Task5WebApplication.Controllers
         private readonly ILogger<HomeController> _logger;
         private readonly IRepositoryWrapper _repository;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private int _countryId = 1;
         public HomeController(ILogger<HomeController> logger, 
             IRepositoryWrapper repository, 
             IWebHostEnvironment webHostEnvironment)
@@ -29,22 +31,25 @@ namespace Task5WebApplication.Controllers
             _logger = logger;
             _repository = repository;
             _webHostEnvironment = webHostEnvironment;
+            _countryId = Extensions.CountryId;
         }
 
         public IActionResult Index(int cursor, int page = 1)
         {
+            Extensions.CurrentPage = page;
             Extensions.r = new Random(Extensions.CurrentPage + Extensions.PersonSeed);
+            Extensions.randomForUsers = new Random(Extensions.CurrentPage + Extensions.PersonSeed);
             var count = cursor == 0 ? 20 : 10;
+            cursor = cursor == 0 ? 11 : cursor;
             for (int i = 0; i < count; i++)
             {
-                Extensions.People.Add(AddPerson());
+                AddPerson();
             }
-            cursor = cursor == 0 ? 11 : cursor;
             var model = new IndexViewModel()
             {
                 Cursor = cursor,
                 Countries = _repository.Country.GetAllCounties(),
-                PeopleInformation = Extensions.People,
+                PeopleInformation = Extensions.Persons,
             };
             return Request.IsHtmx()
                 ? PartialView("_Cards", model)
@@ -54,34 +59,33 @@ namespace Task5WebApplication.Controllers
         public IActionResult Index(IndexViewModel model)
         {
             
-            Extensions.People = new List<List<StringBuilder>>();
-            Extensions.PersonInformationModels = new List<PersonInformationModel>();
             Extensions.CountryId = model.CountryId;
+            _countryId = Extensions.CountryId;
             Extensions.Errors = Convert.ToDouble(model.Errors, new CultureInfo("en-US"));
+            Extensions.Persons = new List<PersonInformationModel>();
             Extensions.PersonSeed = model.UserSeed;
-            Extensions.r = new Random(Extensions.CurrentPage + Extensions.PersonSeed);
             Extensions.CurrentPage = 1;
+            Extensions.r = new Random(Extensions.CurrentPage + Extensions.PersonSeed);
+            Extensions.randomForUsers = new Random(Extensions.CurrentPage + Extensions.PersonSeed);
+            
             for (int i = 0; i < 20; i++)
             {
-                Extensions.People.Add(AddPerson());
+                AddPerson();
             }
-            if (Extensions.Errors > 0)
-                Extensions.People = AddErrors(Extensions.People, Extensions.Errors);
             model.Countries = _repository.Country.GetAllCounties();
-            model.PeopleInformation = Extensions.People;
+            model.PeopleInformation = Extensions.Persons;
             return View(model);
         }
 
-        public List<List<StringBuilder>> AddErrors(List<List<StringBuilder>> persons, double errors)
+        public List<StringBuilder> AddErrors(List<StringBuilder> personRow, double errors)
         {
-            foreach (var personRow in persons)
-            {
-                var error = Extensions.r.Next(0, 2) == 0 && errors % 1 == 0.5 ? (int)errors : (int)errors + 1;
+            var error = Extensions.r.Next(0, 2) == 0 && errors % 1 == 0.5 ? (int)errors : (int)errors + 1;
                 for (int j = 0; j < error; j++)
                 {
+                    int minSymbols = 5;
                     var typeError = Extensions.r.Next(1, 20);
-                    var randomPerson = personRow.PickRandom();
-                    if (typeError == 1 && randomPerson.Length < 5)
+                    var randomPerson = personRow[Extensions.r.Next(personRow.Count)];
+                    if (typeError == 1 && randomPerson.Length < minSymbols)
                     {
                         typeError = 2;
                     }
@@ -91,39 +95,41 @@ namespace Task5WebApplication.Controllers
                             randomPerson.DeleteSymbol();
                             break;
                         case 2:
-                            randomPerson.InsertSymbol(Extensions.CountryId);
+                            randomPerson.InsertSymbol(_countryId);
                             break;
                         default:
                             randomPerson.SwapSymbol();
                             break;
                     }
                 }
-            }
-            return persons;
+                return personRow;
         }
         public List<StringBuilder> AddPerson()
         {
             List<StringBuilder> person = new List<StringBuilder>();
             person.Add(AddPassport());
-            person.Add(AddPersonName());
+            person.Add(AddPersonName()); 
             person.Add(AddCity());
             person.Add(AddStreet());
             person.Add(AddPhoneNumber());
-            Extensions.PersonInformationModels.Add(new PersonInformationModel()
+            if (Extensions.Errors > 0)
+                person = AddErrors(person, Extensions.Errors);
+            var personInformation = new PersonInformationModel()
             {
                 Passport = person[0].ToString(),
                 Name = person[1].ToString(),
                 City = person[2].ToString(),
                 Street = person[3].ToString(),
                 Phone = person[4].ToString()
-            });
+            };
+            Extensions.Persons.Add(personInformation);
             return person;
         }
 
         private StringBuilder AddPhoneNumber()
         {
-            StringBuilder phoneNumber = new StringBuilder(" "+_repository.Country.FindById(c => c.Id == Extensions.CountryId).CodePhoneNumber);
-            switch (Extensions.CountryId)
+            StringBuilder phoneNumber = new StringBuilder(" "+_repository.Country.FindById(c => c.Id == _countryId).CodePhoneNumber);
+            switch (_countryId)
             {
                 case 1:
                     phoneNumber.Append($"{Extensions.r.Next(100000000, 999999999)}");
@@ -141,14 +147,14 @@ namespace Task5WebApplication.Controllers
         {
             StringBuilder name = new StringBuilder();
             bool isMale = Extensions.r.Next(0, 2) == 1;
-            var surNameUser = _repository.Surname.GetRandomSurname(Extensions.CountryId, isMale).SurnamePerson;
-            var nameUser = _repository.Name.GetRandomName(Extensions.CountryId, isMale).NamePerson;
+            var surNameUser = _repository.Surname.GetRandomSurname(_countryId, isMale).SurnamePerson;
+            var nameUser = _repository.Name.GetRandomName(_countryId, isMale).NamePerson;
             
             name.Append($"{surNameUser} " +
                         $"{nameUser} ");
-            if (Extensions.CountryId != 2)
+            if (_countryId != 2)
             {
-                var middleNameUser = _repository.MiddleName.GetRandomMiddleName(Extensions.CountryId, isMale)
+                var middleNameUser = _repository.MiddleName.GetRandomMiddleName(_countryId, isMale)
                     .MiddleNamePerson;
                 name.Append($"{middleNameUser} ");
             }
@@ -158,7 +164,7 @@ namespace Task5WebApplication.Controllers
         private StringBuilder AddCity()
         {
             StringBuilder city = new StringBuilder();
-            var randomRegion = _repository.Region.GetRandomRegion(Extensions.CountryId);
+            var randomRegion = _repository.Region.GetRandomRegion(_countryId);
             var randomCity = randomRegion.Cities.PickRandom();
             city.Append($"{randomRegion.RegionName} " +
                         $"{randomCity.TypeCity.Name} " +
@@ -170,9 +176,9 @@ namespace Task5WebApplication.Controllers
         private StringBuilder AddStreet()
         {
             StringBuilder adress = new StringBuilder();
-            Street street = _repository.Street.GetRandomStreet(Extensions.CountryId);
-            var house = Extensions.CountryId == 2 ? " " : "д. ";
-            var appartment = Extensions.CountryId == 2 ? "-" : "кв.";
+            Street street = _repository.Street.GetRandomStreet(_countryId);
+            var house = _countryId == 2 ? " " : "д. ";
+            var appartment = _countryId == 2 ? "-" : "кв.";
             var houseNum = Extensions.r.Next(1, 100);
             adress.Append($"{street.StreetName} " +
                           $"{house} " +
@@ -193,7 +199,7 @@ namespace Task5WebApplication.Controllers
                 "АВ", "ВМ", "НВ", "КН", "МР", "МС", "КВ"
             };
             StringBuilder idPassport = new StringBuilder();
-            switch (Extensions.CountryId)
+            switch (_countryId)
             {
                 case 1:
                     idPassport.Append($"{Extensions.r.Next(10, 99)}№" +
@@ -213,20 +219,21 @@ namespace Task5WebApplication.Controllers
 
         public void SaveData()
         {
-            using (var writer = new StreamWriter($"{_webHostEnvironment.WebRootPath}/files/personsData.csv"))
+            var prefixName = Guid.NewGuid().ToString();
+            using (var writer = new StreamWriter($"{_webHostEnvironment.WebRootPath}/files/{prefixName}personsData.csv"))
             {
                 using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
                 {
-                    csv.WriteRecords(Extensions.PersonInformationModels);
+                    csv.WriteRecords(Extensions.Persons);
                 }
             }
-            DownloadFile();
+            DownloadFile(prefixName);
         }
 
-        public async void DownloadFile()
+        public void DownloadFile(string prefix)
         {
-            Response.Headers.ContentDisposition = $"attachment; filename=personsData.csv";
-            await Response.SendFileAsync($"{_webHostEnvironment.WebRootPath}/files/personsData.csv");
+            Response.Headers.ContentDisposition = $"attachment; filename={prefix}personsData.csv";
+            Response.SendFileAsync($"{_webHostEnvironment.WebRootPath}/files/{prefix}personsData.csv").Wait();
         }
     }
 }
